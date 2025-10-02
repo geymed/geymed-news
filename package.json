@@ -1,0 +1,24 @@
+{
+  "name": "gaza-deal-tracker",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.11",
+    "fast-levenshtein": "^3.0.0",
+    "next": "14.x",
+    "react": "18.x",
+    "react-dom": "18.x",
+    "rss-parser": "^3.13.0",
+    "swr": "^2.2.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "24.6.2",
+    "@types/react": "19.2.0",
+    "typescript": "5.9.3"
+  }
+}
