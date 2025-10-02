@@ -12,8 +12,43 @@ type Item = {
 
 const parser = new Parser();
 
-const isRelevant = (title: string, summary: string = "") =>
-  KEYWORDS.some(k => (title + " " + summary).toLowerCase().includes(k.toLowerCase()));
+const isRelevant = (title: string, summary: string = "") => {
+  const text = (title + " " + summary).toLowerCase();
+  
+  // Exclude clearly irrelevant topics (but be less aggressive)
+  const excludeTerms = [
+    "russia", "ukraine", "china", "putin", "zelensky", "moscow", "kiev", "kyiv",
+    "election", "campaign", "vote", "poll", "congress", "senate", "house",
+    "economy", "inflation", "stock", "market", "crypto", "bitcoin",
+    "climate", "weather", "sport", "football", "basketball", "soccer",
+    "entertainment", "movie", "music", "celebrity", "hollywood",
+    "technology", "ai", "artificial intelligence", "tesla", "apple"
+  ];
+  
+  // Skip if contains exclusion terms
+  if (excludeTerms.some(term => text.includes(term))) {
+    return false;
+  }
+  
+  // Check for specific keyword matches first (most important)
+  const hasKeywordMatch = KEYWORDS.some(k => text.includes(k.toLowerCase()));
+  if (hasKeywordMatch) {
+    return true;
+  }
+  
+  // Must contain at least one geographic/political term
+  const geoTerms = ["israel", "gaza", "hamas", "palestinian", "trump"];
+  const hasGeoTerm = geoTerms.some(term => text.includes(term));
+  
+  // If it has geographic terms, also check for deal-related context
+  if (hasGeoTerm) {
+    const contextTerms = ["deal", "negotiat", "ceasefire", "peace", "hostage", "truce", "war", "conflict", "attack", "bomb", "missile", "rocket"];
+    const hasContext = contextTerms.some(term => text.includes(term));
+    return hasContext;
+  }
+  
+  return false;
+};
 
 const domain = (url: string) => {
   try { return new URL(url).hostname.replace(/^www\./, ""); }
@@ -34,7 +69,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const title = (it.title || "").trim();
         const summary = (it.contentSnippet || it.content || "").trim();
-        if (!isRelevant(title, summary)) continue;
+        if (!isRelevant(title, summary)) {
+          console.log(`Filtered out: "${title}"`);
+          continue;
+        }
+        console.log(`Included: "${title}"`);
 
         collected.push({
           title,

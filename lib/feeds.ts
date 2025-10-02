@@ -13,6 +13,25 @@ export const ALLOWED_DOMAINS = [
 ];
 
 export const KEYWORDS = [
-  "Hamas", "Gaza", "Trump", "deal", "proposal", "ceasefire",
-  "mediator", "Qatar", "Egypt", "accept", "reject", "conditions"
+  // Core deal-related terms
+  "Hamas deal", "Gaza deal", "Trump deal", "peace deal", "ceasefire deal",
+  "hostage deal", "prisoner exchange", "truce agreement", "peace agreement",
+  
+  // Trump mediation specific
+  "Trump mediation", "Trump negotiat", "Trump peace", "Trump Gaza", "Trump Hamas",
+  "Trump Israel", "Trump Palestinian", "Trump Middle East",
+  
+  // Israel-Gaza specific
+  "Israel Gaza", "Israeli Palestinian", "Gaza Hamas", "Hamas Israel",
+  "Gaza ceasefire", "Gaza peace", "Gaza negotiat", "Gaza hostage",
+  
+  // Deal/negotiation specific
+  "deal negotiat", "peace negotiat", "ceasefire negotiat", "hostage negotiat",
+  "deal proposal", "peace proposal", "ceasefire proposal", "hostage proposal",
+  
+  // Key mediators
+  "Qatar mediation", "Egypt mediation", "Qatar negotiat", "Egypt negotiat",
+  
+  // Specific to current conflict
+  "October 7", "October 7th", "Gaza war", "Israel Hamas war"
 ];
