@@ -5,6 +5,24 @@ import { readStore, writeStore } from "@/lib/store";
 import dayjs from "dayjs";
 import { get as lev } from "fast-levenshtein";
 
+// In-memory storage for feed configuration (in production, use a database)
+let feedConfig: Record<string, boolean> = {};
+
+// Initialize all feeds as enabled by default
+if (Object.keys(feedConfig).length === 0) {
+  FEEDS.forEach(feed => {
+    feedConfig[feed] = true;
+  });
+}
+
+// Function to update feed configuration (called from feeds-config API)
+export const updateFeedConfig = (newConfig: Record<string, boolean>) => {
+  feedConfig = { ...feedConfig, ...newConfig };
+};
+
+// Function to get current feed configuration
+export const getFeedConfig = () => feedConfig;
+
 type Item = {
   title: string; link: string; isoDate?: string;
   source: string; summary?: string;
@@ -47,7 +65,7 @@ const isRelevant = (title: string, summary: string = "") => {
   
   // If it has geographic terms, also check for deal-related context
   if (hasGeoTerm) {
-    const contextTerms = ["deal", "negotiat", "ceasefire", "peace", "hostage", "truce", "war", "conflict", "attack", "bomb", "missile", "rocket"];
+    const contextTerms = ["deal", "negotiat", "ceasefire", "peace", "hostage", "truce", "war", "conflict", "attack", "bomb", "missile", "rocket", "military", "defense", "security", "violence", "casualty", "death", "injured", "hospital", "refugee", "aid", "humanitarian"];
     const hasContext = contextTerms.some(term => text.includes(term));
     return hasContext;
   }
@@ -65,13 +83,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const collected: Item[] = [];
   const errors: string[] = [];
 
-  console.log(`Starting news fetch from ${FEEDS.length} feeds`);
+  // Get enabled feeds only
+  const enabledFeeds = FEEDS.filter(feed => feedConfig[feed] !== false);
+  
+  console.log(`Starting news fetch from ${enabledFeeds.length} enabled feeds (${FEEDS.length} total)`);
+  const feedResults: { [key: string]: { success: boolean; items: number; errors?: string } } = {};
 
-  for (const feed of FEEDS) {
+  for (const feed of enabledFeeds) {
     try {
       console.log(`Fetching feed: ${feed}`);
       const f = await parser.parseURL(feed);
-      console.log(`Feed ${feed} returned ${f.items?.length || 0} items`);
+      const itemCount = f.items?.length || 0;
+      console.log(`Feed ${feed} returned ${itemCount} items`);
+      feedResults[feed] = { success: true, items: itemCount };
       
       for (const it of f.items || []) {
         const link = it.link || "";
@@ -101,6 +125,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const errorMsg = `Error fetching ${feed}: ${error}`;
       console.error(errorMsg);
       errors.push(errorMsg);
+      feedResults[feed] = { success: false, items: 0, errors: errorMsg };
     }
   }
 
@@ -135,7 +160,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       totalFeeds: FEEDS.length,
       totalCollected: collected.length,
       totalUnique: unique.length,
-      errorCount: errors.length
+      errorCount: errors.length,
+      feedResults: feedResults
     }
   });
 }
