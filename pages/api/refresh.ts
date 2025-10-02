@@ -10,7 +10,12 @@ type Item = {
   source: string; summary?: string;
 };
 
-const parser = new Parser();
+const parser = new Parser({
+  timeout: 10000, // 10 second timeout
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (compatible; Gaza Deal Tracker/1.0)'
+  }
+});
 
 const isRelevant = (title: string, summary: string = "") => {
   const text = (title + " " + summary).toLowerCase();
@@ -58,14 +63,23 @@ const domain = (url: string) => {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const store = await readStore();
   const collected: Item[] = [];
+  const errors: string[] = [];
+
+  console.log(`Starting news fetch from ${FEEDS.length} feeds`);
 
   for (const feed of FEEDS) {
     try {
+      console.log(`Fetching feed: ${feed}`);
       const f = await parser.parseURL(feed);
-      for (const it of f.items) {
+      console.log(`Feed ${feed} returned ${f.items?.length || 0} items`);
+      
+      for (const it of f.items || []) {
         const link = it.link || "";
         const d = domain(link);
-        if (!ALLOWED_DOMAINS.includes(d)) continue;
+        if (!ALLOWED_DOMAINS.includes(d)) {
+          console.log(`Domain not allowed: ${d}`);
+          continue;
+        }
 
         const title = (it.title || "").trim();
         const summary = (it.contentSnippet || it.content || "").trim();
@@ -83,8 +97,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           summary
         });
       }
-    } catch {}
+    } catch (error) {
+      const errorMsg = `Error fetching ${feed}: ${error}`;
+      console.error(errorMsg);
+      errors.push(errorMsg);
+    }
   }
+
+  console.log(`Collected ${collected.length} relevant items`);
+  console.log(`Errors: ${errors.length}`);
 
   const unique: Item[] = [];
   for (const it of collected.sort((a,b) => +new Date(b.isoDate || 0) - +new Date(a.isoDate || 0))) {
@@ -93,6 +114,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     unique.push(it);
   }
 
+  // If no items found, add a fallback message
+  if (unique.length === 0) {
+    unique.push({
+      title: "No recent Israel-Gaza-Trump news found",
+      link: "https://example.com",
+      source: "system",
+      summary: "The news feeds may be temporarily unavailable or no relevant news was found. Please try again later.",
+      isoDate: new Date().toISOString()
+    });
+  }
+
   await writeStore({ items: unique.slice(0, 200) });
-  res.status(200).json({ ok: true, count: unique.length, updatedAt: dayjs().toISOString() });
+  res.status(200).json({ 
+    ok: true, 
+    count: unique.length, 
+    updatedAt: dayjs().toISOString(),
+    errors: errors.length > 0 ? errors : undefined,
+    debug: {
+      totalFeeds: FEEDS.length,
+      totalCollected: collected.length,
+      totalUnique: unique.length,
+      errorCount: errors.length
+    }
+  });
 }
